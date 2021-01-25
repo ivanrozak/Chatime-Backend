@@ -1,45 +1,75 @@
 const helper = require('../helper/response')
 
-const { checkFriend, addFriend } = require('../model/friends')
-
-const { checkEmailModel } = require('../model/user')
+const {
+  addFriendModel,
+  getFriendModel,
+  confirmNewFriendModel,
+  getFriendStatusModel,
+  getFriendRequestModel
+} = require('../model/friends')
 
 module.exports = {
-  addFriend: async (req, res) => {
-    try {
-      const { userId, friendEmail } = req.body
-
-      const checkEmail = await checkEmailModel(friendEmail)
-      if (checkEmail.length === 0) {
-        return helper.response(res, 400, 'user by email not found')
-      }
-
-      const friendId = checkEmail[0].user_id
-
-      const setData = {
-        user_id: userId,
-        user_friend_id: friendId
-      }
-
-      let friend = await getUserById(friendId)
-      friend = friend[0].user_name
-
-      const check = await checkFriend(setData)
-
-      if (check.length > 0) {
-        return helper.response(res, 200, `You already friends with ${friend}`)
-      }
-
-      const result = await addFriend(setData)
-
+  addNewFriend: async (request, response) => {
+    const { user_id, friend_id } = request.body
+    const checkFriendStatus = await getFriendStatusModel(user_id, friend_id)
+    if (checkFriendStatus.length > 0) {
+      console.log(checkFriendStatus[0].status)
       return helper.response(
-        res,
+        response,
+        400,
+        'You was sent friend request before'
+      )
+    } else {
+      try {
+        const setData = {
+          user_id,
+          friend_id,
+          friend_created_at: new Date(),
+          friend_status: 0
+        }
+        const result = await addFriendModel(setData)
+        console.log(result)
+        return helper.response(
+          response,
+          200,
+          'Success Sent Friend Request',
+          result
+        )
+      } catch (error) {
+        return helper.response(response, 400, 'Bad Request', error)
+      }
+    }
+  },
+  getFriendInvitation: async (request, response) => {
+    const { id } = request.params
+    try {
+      const result = await getFriendRequestModel(id)
+      return helper.response(
+        response,
         200,
-        `${friend} added to your friend list`,
+        'Success get friend request',
         result
       )
     } catch (error) {
-      return helper.response(res, 400, 'Bad Request', error)
+      return helper.response(response, 400, 'Bad Request', error)
+    }
+  },
+  getFriendList: async (request, response) => {
+    const { id } = request.params
+    try {
+      const result = await getFriendModel(id)
+      return helper.response(response, 200, 'Success get friend list', result)
+    } catch (error) {
+      return helper.response(response, 400, 'Bad Request', error)
+    }
+  },
+  confirmFriendRequest: async (request, response) => {
+    const { user_id, friend_id } = request.body
+    try {
+      const result = await confirmNewFriendModel(user_id, friend_id)
+      return helper.response(response, 200, 'Friend Request Accepted', result)
+    } catch (error) {
+      return helper.response(response, 400, 'Bad Request', error)
     }
   }
 }
